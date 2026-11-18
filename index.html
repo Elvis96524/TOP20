@@ -104,6 +104,18 @@ dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px
 .themes{display:flex;gap:8px;margin-top:14px}
 .themes button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--line);font-size:13px;font-weight:600}
 .themes button[aria-pressed="true"]{border-color:var(--accent);background:var(--bg)}
+/* API usage */
+.usage{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin-top:12px}
+.u-head{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;font-weight:600;color:var(--muted)}
+.u-head b{color:var(--ink);font-size:16px;font-weight:800}
+.u-bar{height:8px;border-radius:99px;background:var(--bg);margin:10px 0 8px;overflow:hidden}
+.u-bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--up);transition:width .4s,background .3s}
+.usage.warn .u-bar i{background:#f0a52e}
+.usage.crit .u-bar i{background:var(--down)}
+.u-note{font-size:12px;color:var(--muted);line-height:1.4}
+.usage.crit .u-note{color:var(--down);font-weight:600}
+dialog label.fl{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 6px}
+dialog input[type=number],dialog select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
@@ -120,6 +132,12 @@ dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px
     <div class="cd-label" id="cdLabel">Market opens in</div>
     <div class="cd" id="cd">--</div>
     <div class="cd-meta" id="cdMeta"></div>
+  </section>
+
+  <section class="usage" id="usage" aria-label="API usage">
+    <div class="u-head"><span>API calls today</span><b id="uCount">0 / 250</b></div>
+    <div class="u-bar"><i id="uFill"></i></div>
+    <div class="u-note" id="uNote"></div>
   </section>
 
   <div class="bar">
@@ -146,6 +164,15 @@ dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px
   <h2>Settings</h2>
   <p>Paste your Financial Modeling Prep API key. It stays in this browser and is only sent to financialmodelingprep.com.</p>
   <input type="password" id="keyInput" placeholder="FMP API key" autocomplete="off" spellcheck="false">
+  <label class="fl" for="limitInput">Daily call limit (free plan is 250)</label>
+  <input type="number" id="limitInput" min="1" max="100000" inputmode="numeric">
+  <label class="fl" for="refreshSel">Auto-refresh</label>
+  <select id="refreshSel">
+    <option value="0">Off (use the refresh button)</option>
+    <option value="1">Every 1 minute</option>
+    <option value="5">Every 5 minutes</option>
+    <option value="15">Every 15 minutes</option>
+  </select>
   <div class="themes" role="group" aria-label="Theme">
     <button data-theme="auto" aria-pressed="true">Auto</button>
     <button data-theme="light" aria-pressed="false">Light</button>
@@ -289,7 +316,33 @@ dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px
     return true;
   }
 
-  async function load() {
+  /* ---------- API usage (counted on this device) ---------- */
+  const utcDay = () => new Date().toISOString().slice(0, 10);
+  const limit = () => Math.max(1, parseInt(store.get("dailyLimit", "250"), 10) || 250);
+  function usage() {
+    try { const u = JSON.parse(store.get("usage", "null")); if (u && u.d === utcDay()) return u; } catch {}
+    return { d: utcDay(), n: 0 };
+  }
+  function bump(n = 1) { const u = usage(); u.n += n; store.set("usage", JSON.stringify(u)); renderUsage(); }
+  function markExhausted() { const u = usage(); u.n = Math.max(u.n, limit()); store.set("usage", JSON.stringify(u)); renderUsage(); }
+  function renderUsage() {
+    const n = usage().n, L = limit(), pct = Math.min(100, n / L * 100);
+    $("uCount").textContent = `${Math.min(n, L)} / ${L}`;
+    $("uFill").style.width = pct + "%";
+    const box = $("usage");
+    box.classList.toggle("warn", pct >= 70 && pct < 90);
+    box.classList.toggle("crit", pct >= 90);
+    const left = Math.max(0, L - n);
+    $("uNote").textContent = pct >= 100 ? "Daily limit reached. Requests will fail until your allowance resets."
+      : pct >= 90 ? `Only ${left} calls left. Auto-refresh is paused.`
+      : `${left} calls left. Counts this app on this device; other devices and apps using the same key aren't included.`;
+  }
+
+  /* ---------- Data fetching with a short cache ---------- */
+  const cache = {};
+  const CACHE_MS = 60000;
+
+  async function load(force = false) {
     if (loading) return;
     const key = store.get("fmpKey", "");
     const list = $("list");
@@ -297,24 +350,31 @@ dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px
       list.innerHTML = `<div class="state"><b>Add your API key</b>Open settings (top right) and paste your Financial Modeling Prep key to see live movers.</div>`;
       return;
     }
+    const c = cache[tab];
+    if (!force && c && Date.now() - c.t < CACHE_MS) { show(c.rows, c.t); return; }
     loading = true; $("refresh").classList.add("spin");
     if (!list.children.length || list.querySelector(".state")) list.innerHTML = '<div class="skel"></div>'.repeat(6);
     try {
+      bump();
       const res = await fetch(`${API}/${ENDPOINT[tab]}?apikey=${encodeURIComponent(key)}`);
       if (res.status === 401 || res.status === 403) throw new Error("Your API key was rejected. Check it in settings.");
-      if (res.status === 429) throw new Error("Rate limit reached. Wait a minute and refresh.");
+      if (res.status === 429) { markExhausted(); throw new Error("Daily or per-minute limit reached. Try again later."); }
       if (!res.ok) throw new Error(`The data service returned an error (${res.status}).`);
       const data = await res.json();
       if (!Array.isArray(data)) throw new Error(data["Error Message"] || "Unexpected response from the data service.");
-      let rows = data.filter(isRealUsStock);
-      if ($("minPrice").checked) rows = rows.filter(r => Number(r.price) >= 1);
-      render(rows.slice(0, 20));
-      $("updated").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      cache[tab] = { t: Date.now(), rows: data.filter(isRealUsStock) };
+      show(cache[tab].rows, cache[tab].t);
     } catch (err) {
       const msg = err.message === "Failed to fetch" ? "Check your internet connection and try again." : err.message;
       list.innerHTML = `<div class="state"><b>Couldn't load movers</b></div>`;
       list.firstChild.append(msg);
     } finally { loading = false; $("refresh").classList.remove("spin"); }
+  }
+  function show(rows, t) {
+    let r = rows;
+    if ($("minPrice").checked) r = r.filter(x => Number(x.price) >= 1);
+    render(r.slice(0, 20));
+    $("updated").textContent = "Updated " + new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   }
 
   function render(rows) {
@@ -348,7 +408,7 @@ dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px
     document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === b));
     $("list").textContent = ""; load();
   }));
-  $("refresh").addEventListener("click", load);
+  $("refresh").addEventListener("click", () => load(true));
   $("minPrice").checked = store.get("minPrice", "1") === "1";
   $("minPrice").addEventListener("change", () => { store.set("minPrice", $("minPrice").checked ? "1" : "0"); load(); });
 
@@ -360,12 +420,19 @@ dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px
   let pendingTheme = store.get("theme", "auto");
   applyTheme(pendingTheme);
   dlg.querySelectorAll("[data-theme]").forEach(b => b.addEventListener("click", () => { pendingTheme = b.dataset.theme; applyTheme(pendingTheme); }));
-  $("openSettings").addEventListener("click", () => { $("keyInput").value = store.get("fmpKey", ""); dlg.showModal(); });
+  $("openSettings").addEventListener("click", () => {
+    $("keyInput").value = store.get("fmpKey", "");
+    $("limitInput").value = limit();
+    $("refreshSel").value = store.get("refreshMin", "5");
+    dlg.showModal();
+  });
   $("cancelSettings").addEventListener("click", () => { pendingTheme = store.get("theme", "auto"); applyTheme(pendingTheme); dlg.close(); });
   $("saveSettings").addEventListener("click", () => {
     store.set("fmpKey", $("keyInput").value.trim());
     store.set("theme", pendingTheme);
-    dlg.close(); $("list").textContent = ""; load();
+    store.set("dailyLimit", String(Math.max(1, parseInt($("limitInput").value, 10) || 250)));
+    store.set("refreshMin", $("refreshSel").value);
+    dlg.close(); renderUsage(); schedule(); $("list").textContent = ""; load(true);
   });
 
   $("signOut").addEventListener("click", () => {
@@ -374,8 +441,18 @@ dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px
   });
 
   tickClock(); setInterval(tickClock, 1000);
-  load(); setInterval(() => { if (!document.hidden && marketState().state !== "closed") load(); }, 60000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+  let timer;
+  function schedule() {
+    clearInterval(timer);
+    const m = parseInt(store.get("refreshMin", "5"), 10);
+    if (!m) return;
+    timer = setInterval(() => {
+      const nearLimit = usage().n >= limit() * 0.9;
+      if (!document.hidden && !nearLimit && marketState().state !== "closed") load(true);
+    }, m * 60000);
+  }
+  renderUsage(); schedule(); load();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { renderUsage(); load(); } });
   if (!store.get("fmpKey", "")) dlg.showModal();
 
 })();
