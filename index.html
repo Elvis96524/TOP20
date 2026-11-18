@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
 <script src="auth-config.js"></script>
+<script src="pwa.js"></script>
 <script>
 (function(){try{var a=window.AUTH||{},t=localStorage.getItem("auth")||sessionStorage.getItem("auth");if(!a.hash||t!==a.hash)location.replace("login.html");}catch(e){location.replace("login.html");}})();
 </script>
@@ -377,7 +378,6 @@ dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px
   document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
   if (!store.get("fmpKey", "")) dlg.showModal();
 
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
 </script>
 </body>
