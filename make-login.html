@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{box-sizing:border-box;margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#eef2f7;color:#0f1b2d;padding:20px;display:grid;place-items:start center}
+.card{width:min(100%,520px);background:#fff;border-radius:24px;padding:26px;margin-top:20px}
+h1{font-size:24px;margin-bottom:6px}
+p{color:#6b7a90;font-size:14px;line-height:1.5;margin-bottom:16px}
+label{display:block;font-size:13px;font-weight:600;color:#6b7a90;margin:0 0 6px}
+input,textarea{width:100%;padding:13px 14px;border-radius:12px;border:1px solid #dde4ee;font:inherit;font-size:16px;margin-bottom:14px}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;height:130px}
+button{padding:13px 18px;border-radius:12px;border:0;background:#0f1b2d;color:#fff;font:inherit;font-weight:700;cursor:pointer;margin-right:8px}
+ol{margin:16px 0 0 18px;font-size:14px;line-height:1.7;color:#0f1b2d}
+</style>
+</head>
+<body>
+<main class="card">
+  <h1>Create your login</h1>
+  <p>Runs only in your browser. Nothing is sent anywhere. Choose an ID and a long password, then paste the result into <b>auth-config.js</b>.</p>
+  <label for="id">ID</label><input id="id" autocomplete="off" autocapitalize="none">
+  <label for="pw">Password (12+ characters)</label><input id="pw" type="password" autocomplete="new-password">
+  <button id="gen">Generate</button>
+  <div id="out" hidden style="margin-top:20px">
+    <label for="cfg">Contents for auth-config.js</label>
+    <textarea id="cfg" readonly></textarea>
+    <button id="copy">Copy</button>
+    <ol>
+      <li>Open <b>auth-config.js</b> in your GitHub repo and replace everything with the text above.</li>
+      <li>Commit it, wait a minute for GitHub Pages to update, then sign in.</li>
+      <li>Delete <b>make-login.html</b> from the repo when you're done.</li>
+    </ol>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+$("gen").onclick = async () => {
+  const id = $("id").value.trim(), pw = $("pw").value;
+  if (!id || pw.length < 12) { alert("Enter an ID and a password of at least 12 characters."); return; }
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const salt = [...saltBytes].map(b => b.toString(16).padStart(2, "0")).join("");
+  const iterations = 200000, enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(id.toLowerCase() + ":" + pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode(salt), iterations }, key, 256);
+  const hash = [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, "0")).join("");
+  $("cfg").value = `window.AUTH = { salt: "${salt}", iterations: ${iterations}, hash: "${hash}" };`;
+  $("out").hidden = false;
+};
+$("copy").onclick = () => { navigator.clipboard.writeText($("cfg").value); $("copy").textContent = "Copied"; };
+</script>
+</body>
+</html>

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>US Top Movers</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1b2d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<script src="auth-config.js"></script>
+<script>
+(function(){try{var a=window.AUTH||{},t=localStorage.getItem("auth")||sessionStorage.getItem("auth");if(!a.hash||t!==a.hash)location.replace("login.html");}catch(e){location.replace("login.html");}})();
+</script>
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef2f7; --surface:#ffffff; --ink:#0f1b2d; --muted:#6b7a90; --line:#dde4ee;
+  --up:#0a9d63; --up-bg:#d9f5e8; --down:#d6334a; --down-bg:#fde0e4;
+  --hero:#0f1b2d; --hero-ink:#f4f7fb; --hero-muted:#93a4bd; --accent:#2fd38c;
+  --font:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a1220; --surface:#121e33; --ink:#eaf0f8; --muted:#8294ae; --line:#1f2f4a;
+    --up:#34d399; --up-bg:#0f3a2c; --down:#ff6b81; --down-bg:#431a24;
+    --hero:#16253f; 
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a1220; --surface:#121e33; --ink:#eaf0f8; --muted:#8294ae; --line:#1f2f4a;
+  --up:#34d399; --up-bg:#0f3a2c; --down:#ff6b81; --down-bg:#431a24; --hero:#16253f;
+}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);min-height:100vh;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  font-variant-numeric:tabular-nums}
+.wrap{max-width:560px;margin:0 auto;padding:16px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Countdown hero */
+.hero{background:var(--hero);color:var(--hero-ink);border-radius:24px;padding:22px 22px 20px;position:relative;overflow:hidden}
+.hero-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.status{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--hero-muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:#7b8aa3}
+.status.open .dot{background:var(--accent);box-shadow:0 0 0 0 rgba(47,211,140,.6);animation:pulse 2s infinite}
+.status.pre .dot,.status.post .dot{background:#f5b84a}
+@keyframes pulse{70%{box-shadow:0 0 0 10px rgba(47,211,140,0)}100%{box-shadow:0 0 0 0 rgba(47,211,140,0)}}
+.icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--hero-muted)}
+.icon-btn:hover{background:rgba(255,255,255,.08);color:var(--hero-ink)}
+.cd-label{margin-top:14px;font-size:14px;color:var(--hero-muted)}
+.cd{display:flex;gap:6px;align-items:baseline;margin-top:4px;font-weight:800;font-size:clamp(44px,14vw,68px);letter-spacing:-.03em;line-height:1}
+.cd small{font-size:15px;font-weight:600;color:var(--hero-muted);letter-spacing:0;margin-right:10px}
+.cd-meta{margin-top:14px;font-size:13px;color:var(--hero-muted)}
+
+/* Controls */
+.bar{display:flex;gap:8px;align-items:center;margin:18px 0 12px}
+.tabs{display:flex;background:var(--surface);border-radius:14px;padding:4px;flex:1;border:1px solid var(--line)}
+.tab{flex:1;padding:9px 6px;border-radius:10px;font-weight:600;font-size:14px;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.refresh{width:44px;height:44px;border-radius:14px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center}
+.refresh.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.filters{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px;gap:10px}
+.chk{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+.chk input{accent-color:var(--up);width:16px;height:16px}
+
+/* List */
+.list{background:var(--surface);border-radius:20px;border:1px solid var(--line);overflow:hidden}
+.row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.sym{font-weight:800;font-size:16px}
+.nm{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+.r{text-align:right}
+.px{font-weight:600;font-size:15px}
+.pill{display:inline-block;margin-top:3px;padding:3px 9px;border-radius:999px;font-weight:800;font-size:13px}
+.up{color:var(--up);background:var(--up-bg)}
+.down{color:var(--down);background:var(--down-bg)}
+.chg{font-size:12px;color:var(--muted);margin-left:6px}
+.state{padding:36px 20px;text-align:center;color:var(--muted);font-size:15px;line-height:1.5}
+.state b{display:block;color:var(--ink);font-size:17px;margin-bottom:6px}
+.skel{height:64px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,transparent,rgba(127,140,160,.12),transparent);background-size:200% 100%;animation:sh 1.3s infinite}
+@keyframes sh{from{background-position:200% 0}to{background-position:-200% 0}}
+.foot{text-align:center;font-size:12px;color:var(--muted);margin:16px 0 8px}
+
+/* Settings sheet */
+dialog{border:0;border-radius:24px;padding:22px;width:min(92vw,440px);background:var(--surface);color:var(--ink);margin:auto}
+dialog::backdrop{background:rgba(5,10,20,.6)}
+dialog h2{font-size:20px;margin-bottom:6px}
+dialog p{font-size:14px;color:var(--muted);line-height:1.5;margin-bottom:14px}
+dialog input[type=password],dialog input[type=text]{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+.actions{display:flex;gap:10px;margin-top:16px;justify-content:flex-end}
+.btn{padding:12px 18px;border-radius:12px;font-weight:800}
+.btn.primary{background:var(--accent);color:#06281a}
+.btn.ghost{color:var(--muted)}
+.themes{display:flex;gap:8px;margin-top:14px}
+.themes button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--line);font-size:13px;font-weight:600}
+.themes button[aria-pressed="true"]{border-color:var(--accent);background:var(--bg)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="hero" aria-live="polite">
+    <div class="hero-top">
+      <span class="status" id="status"><span class="dot"></span><span id="statusText">Checking market…</span></span>
+      <button class="icon-btn" id="openSettings" aria-label="Settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+    <div class="cd-label" id="cdLabel">Market opens in</div>
+    <div class="cd" id="cd">--</div>
+    <div class="cd-meta" id="cdMeta"></div>
+  </section>
+
+  <div class="bar">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-t="gainers" aria-selected="true">Gainers</button>
+      <button class="tab" role="tab" data-t="losers" aria-selected="false">Losers</button>
+      <button class="tab" role="tab" data-t="actives" aria-selected="false">Most active</button>
+    </div>
+    <button class="refresh" id="refresh" aria-label="Refresh">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+    </button>
+  </div>
+
+  <div class="filters">
+    <label class="chk"><input type="checkbox" id="minPrice" checked> Hide stocks under $1</label>
+    <span id="updated"></span>
+  </div>
+
+  <div class="list" id="list"></div>
+  <p class="foot">US stocks on NASDAQ, NYSE and AMEX only. CFDs and crypto are excluded. Data by Financial Modeling Prep.</p>
+</div>
+
+<dialog id="settings">
+  <h2>Settings</h2>
+  <p>Paste your Financial Modeling Prep API key. It stays in this browser and is only sent to financialmodelingprep.com.</p>
+  <input type="password" id="keyInput" placeholder="FMP API key" autocomplete="off" spellcheck="false">
+  <div class="themes" role="group" aria-label="Theme">
+    <button data-theme="auto" aria-pressed="true">Auto</button>
+    <button data-theme="light" aria-pressed="false">Light</button>
+    <button data-theme="dark" aria-pressed="false">Dark</button>
+  </div>
+  <div class="actions">
+    <button class="btn ghost" id="signOut">Sign out</button>
+    <button class="btn ghost" id="cancelSettings">Cancel</button>
+    <button class="btn primary" id="saveSettings">Save key</button>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const API = "https://financialmodelingprep.com/stable";
+  const ENDPOINT = { gainers: "biggest-gainers", losers: "biggest-losers", actives: "most-actives" };
+  const ALLOWED_EXCHANGES = new Set(["NASDAQ", "NYSE", "AMEX", "NYSE ARCA", "NYSE AMERICAN", "NYSEARCA", "BATS", "CBOE"]);
+  const TZ = "America/New_York";
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+  };
+
+  let tab = "gainers";
+  let loading = false;
+
+  /* ---------- Market clock (New York time) ---------- */
+  const pad = n => String(n).padStart(2, "0");
+  const ymd = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+
+  function nyParts(date) {
+    const p = {};
+    new Intl.DateTimeFormat("en-US", { timeZone: TZ, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", weekday: "short" })
+      .formatToParts(date).forEach(x => p[x.type] = x.value);
+    return { y: +p.year, m: +p.month, d: +p.day, h: +p.hour, min: +p.minute, s: +p.second, wd: p.weekday };
+  }
+  // Convert a New York wall-clock time to a real instant.
+  function nyToDate(y, m, d, h, min) {
+    let guess = Date.UTC(y, m - 1, d, h, min);
+    for (let i = 0; i < 2; i++) {
+      const q = nyParts(new Date(guess));
+      const asUtc = Date.UTC(q.y, q.m - 1, q.d, q.h, q.min);
+      guess += Date.UTC(y, m - 1, d, h, min) - asUtc;
+    }
+    return new Date(guess);
+  }
+  function nthWeekday(y, m, wd, n) { // wd 0=Sun
+    const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+    return 1 + ((wd - first + 7) % 7) + (n - 1) * 7;
+  }
+  function lastMonday(y, m) {
+    const last = new Date(Date.UTC(y, m, 0));
+    return last.getUTCDate() - ((last.getUTCDay() + 6) % 7);
+  }
+  function easter(y) {
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4,
+      f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30,
+      i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+      month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+    return [month, day];
+  }
+  const holidayCache = {};
+  function holidays(y) {
+    if (holidayCache[y]) return holidayCache[y];
+    const set = new Set();
+    const fixed = (m, d) => { // observed rule: Sat -> Fri, Sun -> Mon
+      const dt = new Date(Date.UTC(y, m - 1, d)); const wd = dt.getUTCDay();
+      if (wd === 6) dt.setUTCDate(d - 1); else if (wd === 0) dt.setUTCDate(d + 1);
+      if (dt.getUTCFullYear() === y) set.add(ymd(y, dt.getUTCMonth() + 1, dt.getUTCDate()));
+    };
+    fixed(1, 1); fixed(6, 19); fixed(7, 4); fixed(12, 25);
+    set.add(ymd(y, 1, nthWeekday(y, 1, 1, 3)));   // MLK
+    set.add(ymd(y, 2, nthWeekday(y, 2, 1, 3)));   // Presidents
+    set.add(ymd(y, 5, lastMonday(y)));            // Memorial
+    set.add(ymd(y, 9, nthWeekday(y, 9, 1, 1)));   // Labor
+    set.add(ymd(y, 11, nthWeekday(y, 11, 4, 4))); // Thanksgiving
+    const [em, ed] = easter(y);
+    const gf = new Date(Date.UTC(y, em - 1, ed - 2));
+    set.add(ymd(y, gf.getUTCMonth() + 1, gf.getUTCDate())); // Good Friday
+    return holidayCache[y] = set;
+  }
+  function isTradingDay(y, m, d) {
+    const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    return wd !== 0 && wd !== 6 && !holidays(y).has(ymd(y, m, d));
+  }
+  function closeHour(y, m, d) { // early 1pm closes
+    const thanks = nthWeekday(y, 11, 4, 4);
+    if (m === 11 && d === thanks + 1) return 13;
+    if (m === 12 && d === 24) return 13;
+    if (m === 7 && d === 3 && new Date(Date.UTC(y, 6, 3)).getUTCDay() !== 0) return 13;
+    return 16;
+  }
+  function marketState(now = new Date()) {
+    const t = nyParts(now);
+    const mins = t.h * 60 + t.min;
+    const trading = isTradingDay(t.y, t.m, t.d);
+    const close = closeHour(t.y, t.m, t.d) * 60;
+    if (trading && mins >= 570 && mins < close) {
+      return { state: "open", target: nyToDate(t.y, t.m, t.d, close / 60, 0), label: "Market closes in" };
+    }
+    let state = "closed";
+    if (trading && mins >= 240 && mins < 570) state = "pre";
+    else if (trading && mins >= close && mins < 1200) state = "post";
+    // next open
+    let y = t.y, m = t.m, d = t.d;
+    const beforeOpenToday = trading && mins < 570;
+    if (!beforeOpenToday) { do { const n = new Date(Date.UTC(y, m - 1, d + 1)); y = n.getUTCFullYear(); m = n.getUTCMonth() + 1; d = n.getUTCDate(); } while (!isTradingDay(y, m, d)); }
+    return { state, target: nyToDate(y, m, d, 9, 30), label: "Market opens in" };
+  }
+  const STATE_TEXT = { open: "Market open", pre: "Pre-market", post: "After hours", closed: "Market closed" };
+
+  function tickClock() {
+    const now = new Date();
+    const ms = marketState(now);
+    const diff = Math.max(0, ms.target - now);
+    const totalSec = Math.floor(diff / 1000);
+    const d = Math.floor(totalSec / 86400), h = Math.floor(totalSec % 86400 / 3600),
+      m = Math.floor(totalSec % 3600 / 60), s = totalSec % 60;
+    const parts = [];
+    if (d) parts.push(`<small>${d}d</small>`);
+    parts.push(`${pad(h)}<small>h</small>${pad(m)}<small>m</small>${pad(s)}<small>s</small>`);
+    $("cd").innerHTML = parts.join("");
+    $("cdLabel").textContent = ms.label;
+    $("statusText").textContent = STATE_TEXT[ms.state];
+    $("status").className = "status " + ms.state;
+    const fmt = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+    $("cdMeta").textContent = (ms.state === "open" ? "Closes " : "Opens ") + fmt.format(ms.target) + " · 9:30 AM–4:00 PM New York time";
+  }
+
+  /* ---------- Data ---------- */
+  function isRealUsStock(x) {
+    const sym = String(x.symbol || "").toUpperCase();
+    const ex = String(x.exchange || "").toUpperCase();
+    const name = String(x.name || "").toUpperCase();
+    if (!sym || /CFD|CRYPTO|FOREX|COMMODITY/.test(ex)) return false;
+    if (ex && !ALLOWED_EXCHANGES.has(ex)) return false;
+    if (/\bCFD\b/.test(name)) return false;
+    if (/(USD|USDT|USDC|BTC|ETH)$/.test(sym) && sym.length > 4) return false;   // crypto pairs e.g. BTCUSD
+    if (sym.includes("/") || sym.includes(":")) return false;
+    return true;
+  }
+
+  async function load() {
+    if (loading) return;
+    const key = store.get("fmpKey", "");
+    const list = $("list");
+    if (!key) {
+      list.innerHTML = `<div class="state"><b>Add your API key</b>Open settings (top right) and paste your Financial Modeling Prep key to see live movers.</div>`;
+      return;
+    }
+    loading = true; $("refresh").classList.add("spin");
+    if (!list.children.length || list.querySelector(".state")) list.innerHTML = '<div class="skel"></div>'.repeat(6);
+    try {
+      const res = await fetch(`${API}/${ENDPOINT[tab]}?apikey=${encodeURIComponent(key)}`);
+      if (res.status === 401 || res.status === 403) throw new Error("Your API key was rejected. Check it in settings.");
+      if (res.status === 429) throw new Error("Rate limit reached. Wait a minute and refresh.");
+      if (!res.ok) throw new Error(`The data service returned an error (${res.status}).`);
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error(data["Error Message"] || "Unexpected response from the data service.");
+      let rows = data.filter(isRealUsStock);
+      if ($("minPrice").checked) rows = rows.filter(r => Number(r.price) >= 1);
+      render(rows.slice(0, 20));
+      $("updated").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    } catch (err) {
+      const msg = err.message === "Failed to fetch" ? "Check your internet connection and try again." : err.message;
+      list.innerHTML = `<div class="state"><b>Couldn't load movers</b></div>`;
+      list.firstChild.append(msg);
+    } finally { loading = false; $("refresh").classList.remove("spin"); }
+  }
+
+  function render(rows) {
+    const list = $("list");
+    list.textContent = "";
+    if (!rows.length) { list.innerHTML = `<div class="state"><b>No stocks to show</b>Try turning off the $1 filter or refresh later.</div>`; return; }
+    const fmtP = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+    rows.forEach(r => {
+      const pct = Number(r.changesPercentage ?? r.changePercentage ?? 0);
+      const chg = Number(r.change ?? 0);
+      const up = pct >= 0;
+      const row = document.createElement("div"); row.className = "row";
+      const left = document.createElement("div");
+      const sym = document.createElement("div"); sym.className = "sym"; sym.textContent = r.symbol;
+      const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = r.name || r.exchange || "";
+      left.append(sym, nm);
+      const right = document.createElement("div"); right.className = "r";
+      const px = document.createElement("div"); px.className = "px"; px.textContent = fmtP.format(Number(r.price));
+      const pill = document.createElement("span"); pill.className = "pill " + (up ? "up" : "down");
+      pill.textContent = `${up ? "+" : ""}${pct.toFixed(2)}%`;
+      const c = document.createElement("span"); c.className = "chg"; c.textContent = `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}`;
+      right.append(px, pill, c);
+      row.append(left, right);
+      list.append(row);
+    });
+  }
+
+  /* ---------- UI wiring ---------- */
+  document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {
+    tab = b.dataset.t;
+    document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === b));
+    $("list").textContent = ""; load();
+  }));
+  $("refresh").addEventListener("click", load);
+  $("minPrice").checked = store.get("minPrice", "1") === "1";
+  $("minPrice").addEventListener("change", () => { store.set("minPrice", $("minPrice").checked ? "1" : "0"); load(); });
+
+  const dlg = $("settings");
+  function applyTheme(t) {
+    if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.dataset.theme = t;
+    dlg.querySelectorAll("[data-theme]").forEach(b => b.setAttribute("aria-pressed", b.dataset.theme === t));
+  }
+  let pendingTheme = store.get("theme", "auto");
+  applyTheme(pendingTheme);
+  dlg.querySelectorAll("[data-theme]").forEach(b => b.addEventListener("click", () => { pendingTheme = b.dataset.theme; applyTheme(pendingTheme); }));
+  $("openSettings").addEventListener("click", () => { $("keyInput").value = store.get("fmpKey", ""); dlg.showModal(); });
+  $("cancelSettings").addEventListener("click", () => { pendingTheme = store.get("theme", "auto"); applyTheme(pendingTheme); dlg.close(); });
+  $("saveSettings").addEventListener("click", () => {
+    store.set("fmpKey", $("keyInput").value.trim());
+    store.set("theme", pendingTheme);
+    dlg.close(); $("list").textContent = ""; load();
+  });
+
+  $("signOut").addEventListener("click", () => {
+    try { localStorage.removeItem("auth"); sessionStorage.removeItem("auth"); } catch {}
+    location.replace("login.html");
+  });
+
+  tickClock(); setInterval(tickClock, 1000);
+  load(); setInterval(() => { if (!document.hidden && marketState().state !== "closed") load(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+  if (!store.get("fmpKey", "")) dlg.showModal();
+
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>

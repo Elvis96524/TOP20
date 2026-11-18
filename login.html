@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in · US Top Movers</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1b2d">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="auth-config.js"></script>
+<style>
+*{box-sizing:border-box;margin:0}
+body{font-family:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;background:#0a1220;color:#eaf0f8;min-height:100vh;display:grid;place-items:center;padding:20px}
+.card{width:min(100%,400px);background:#16253f;border-radius:28px;padding:30px 26px 26px}
+.logo{width:56px;height:56px;border-radius:16px;margin-bottom:22px}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em}
+p.sub{color:#93a4bd;font-size:15px;margin:6px 0 24px}
+label{display:block;font-size:13px;font-weight:600;color:#93a4bd;margin:0 0 6px}
+.field{margin-bottom:16px;position:relative}
+input[type=text],input[type=password]{width:100%;padding:14px 16px;border-radius:14px;border:1px solid #2a3d5e;background:#0f1b2d;color:#eaf0f8;font:inherit;font-size:16px}
+input:focus-visible{outline:2px solid #2fd38c;outline-offset:1px}
+.show{position:absolute;right:6px;bottom:6px;height:36px;padding:0 12px;border-radius:10px;border:0;background:none;color:#93a4bd;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.keep{display:flex;gap:10px;align-items:center;font-size:14px;color:#93a4bd;margin:4px 0 20px;cursor:pointer}
+.keep input{accent-color:#2fd38c;width:18px;height:18px}
+button.go{width:100%;padding:15px;border-radius:14px;border:0;background:#2fd38c;color:#06281a;font:inherit;font-weight:800;font-size:16px;cursor:pointer}
+button.go:disabled{opacity:.6;cursor:default}
+.err{min-height:22px;margin-top:14px;font-size:14px;color:#ff6b81;text-align:center}
+</style>
+</head>
+<body>
+<main class="card">
+  <img class="logo" src="icon-192.png" alt="">
+  <h1>Sign in</h1>
+  <p class="sub">Enter your ID and password to open US Top Movers.</p>
+  <form id="f" autocomplete="on">
+    <div class="field">
+      <label for="id">ID</label>
+      <input type="text" id="id" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    </div>
+    <div class="field">
+      <label for="pw">Password</label>
+      <input type="password" id="pw" name="password" autocomplete="current-password" required>
+      <button type="button" class="show" id="show">Show</button>
+    </div>
+    <label class="keep"><input type="checkbox" id="keep" checked> Keep me signed in on this device</label>
+    <button class="go" id="go" type="submit">Sign in</button>
+    <div class="err" id="err" role="alert"></div>
+  </form>
+</main>
+<script>
+(() => {
+  const A = window.AUTH || {};
+  const $ = id => document.getElementById(id);
+  const get = (s, k) => { try { return s.getItem(k); } catch { return null; } };
+  const set = (s, k, v) => { try { s.setItem(k, v); } catch {} };
+
+  // Already signed in
+  if (A.hash && (get(localStorage, "auth") === A.hash || get(sessionStorage, "auth") === A.hash)) location.replace("index.html");
+
+  async function derive(id, pw) {
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey("raw", enc.encode(id.trim().toLowerCase() + ":" + pw), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode(A.salt), iterations: A.iterations }, key, 256);
+    return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  if (!A.hash) $("err").textContent = "Login isn't set up yet. Open make-login.html to create your ID and password.";
+
+  $("show").addEventListener("click", () => {
+    const p = $("pw"); const hide = p.type === "password";
+    p.type = hide ? "text" : "password"; $("show").textContent = hide ? "Hide" : "Show";
+  });
+
+  let fails = +(get(localStorage, "authFails") || 0);
+  let lockUntil = +(get(localStorage, "authLock") || 0);
+
+  $("f").addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = $("err"); err.textContent = "";
+    if (!A.hash) { err.textContent = "Login isn't set up yet. Open make-login.html first."; return; }
+    const wait = Math.ceil((lockUntil - Date.now()) / 1000);
+    if (wait > 0) { err.textContent = `Too many attempts. Try again in ${wait}s.`; return; }
+    $("go").disabled = true;
+    try {
+      const h = await derive($("id").value, $("pw").value);
+      if (h === A.hash) {
+        set(localStorage, "authFails", "0");
+        set($("keep").checked ? localStorage : sessionStorage, "auth", h);
+        location.replace("index.html");
+        return;
+      }
+      fails++; set(localStorage, "authFails", String(fails));
+      if (fails % 5 === 0) { lockUntil = Date.now() + 30000 * (fails / 5); set(localStorage, "authLock", String(lockUntil)); err.textContent = "Too many attempts. Try again in 30s."; }
+      else err.textContent = "ID or password is incorrect.";
+      $("pw").value = ""; $("pw").focus();
+    } catch { err.textContent = "Sign-in needs a secure (https) connection."; }
+    finally { $("go").disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>
